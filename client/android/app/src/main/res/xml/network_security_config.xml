@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Allow plain HTTP only to the local home hub server. -->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">home.hub</domain>
+    </domain-config>
+</network-security-config>

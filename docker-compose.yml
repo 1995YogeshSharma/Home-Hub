@@ -1,0 +1,51 @@
+services:
+  server:
+    build: ./server
+    ports:
+      - "${APP_PORT:-8000}:80"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      # python:3.14 has no curl; use the stdlib so the image needs no extra packages.
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  web_client:
+    build: ./client
+    depends_on:
+      server:
+        condition: service_healthy
+    ports:
+      # nginx in the client image listens on 80.
+      - "8080:80"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  db:
+    image: postgres:18
+    restart: always
+    environment:
+      POSTGRES_USER: ${DB_USERNAME:-admin}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-admin}
+      POSTGRES_DB: appdb
+    volumes:
+      - ./pgdata:/var/lib/postgresql/18/docker
+    ports:
+      # Loopback only: reachable from the host machine, not from the network.
+      # Other services reach the db over the compose network as `db:5432`.
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      # $$ defers expansion to the container, so the check uses the db's own env.
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s

@@ -10,3 +10,15 @@ dependencies = [
     "sqlalchemy>=2.1.6",
     "uvicorn[standard]"
 ]
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28.1",
+    "pytest>=9.1.1",
+]
+
+[tool.pytest.ini_options]
+# Tests import the package as `app` (matching the container's /src layout), so the
+# parent directory must be on sys.path.
+pythonpath = [".."]
+testpaths = ["tests"]

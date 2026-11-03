@@ -18,3 +18,9 @@ app.add_middleware(
 @app.get("/")
 def read_root():
     return {"Hello": "Hello from home hub"}
+
+
+@app.get("/health")
+def health():
+    """Liveness probe: the process is up and serving requests. Used by the container healthcheck."""
+    return {"status": "ok"}

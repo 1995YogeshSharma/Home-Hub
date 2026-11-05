@@ -1,11 +1,43 @@
+# The app reads config only from env vars; compose is the single source for them.
+# Shared by every service that runs server code, so they can't drift apart.
+x-db-env: &db-env
+  DB_HOST: db
+  DB_PORT: 5432
+  DB_NAME: ${DB_NAME:-appdb}
+  DB_USERNAME: ${DB_USERNAME:-admin}
+  DB_PASSWORD: ${DB_PASSWORD:-admin}
+  DB_POOL_SIZE: ${DB_POOL_SIZE:-10}
+  DB_MAX_OVERFLOW: ${DB_MAX_OVERFLOW:-10}
+  # Set DB_ECHO=true on the host to log SQL with bound parameters (local debugging only).
+  DB_ECHO: ${DB_ECHO:-false}
+
 services:
-  server:
+  # One-shot: applies Alembic migrations, then exits. The server only starts once this
+  # has succeeded, so it never runs against an out-of-date schema, and migrations run
+  # exactly once however many server replicas there are.
+  migrate:
     build: ./server
-    ports:
-      - "${APP_PORT:-8000}:80"
+    # Same tag as `server`: migrations and the app code that expects them always come
+    # from the same build, so rebuilding one can't leave the other stale.
+    image: ${COMPOSE_PROJECT_NAME}-server
+    command: ["alembic", "-c", "app/alembic.ini", "upgrade", "head"]
+    environment: *db-env
     depends_on:
       db:
         condition: service_healthy
+    restart: "no"
+
+  server:
+    build: ./server
+    image: ${COMPOSE_PROJECT_NAME}-server
+    ports:
+      - "${APP_PORT:-8000}:80"
+    environment: *db-env
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     healthcheck:
       # python:3.14 has no curl; use the stdlib so the image needs no extra packages.
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost/health', timeout=3)"]
@@ -35,7 +67,7 @@ services:
     environment:
       POSTGRES_USER: ${DB_USERNAME:-admin}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-admin}
-      POSTGRES_DB: appdb
+      POSTGRES_DB: ${DB_NAME:-appdb}
     volumes:
       - ./pgdata:/var/lib/postgresql/18/docker
     ports:
@@ -44,7 +76,9 @@ services:
       - "127.0.0.1:5432:5432"
     healthcheck:
       # $$ defers expansion to the container, so the check uses the db's own env.
-      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      # -h forces TCP: on first init the entrypoint runs a temporary socket-only server,
+      # which must not count as healthy (migrate connects over TCP right after).
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
       interval: 5s
       timeout: 5s
       retries: 10

@@ -1,9 +1,11 @@
-.venv/
+# Patterns are relative to the build context (server/); `**/` makes them match in app/ too.
+**/.venv/
 .git/
-__pycache__/
-*.pyc
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
-.env
+**/__pycache__/
+**/*.pyc
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+# Never bake secrets/local config into the image; containers get config from compose.
+**/.env
 app/tests/

@@ -1,6 +1,7 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:home_hub_client/api/api_client.dart';
-import 'package:home_hub_client/main.dart';
+import 'package:home_hub_client/server_status/server_status_page.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
@@ -12,7 +13,11 @@ ApiClient _apiReturning(int status, String body) => ApiClient(
 void main() {
   testWidgets('shows Connected when server responds', (tester) async {
     await tester.pumpWidget(
-      MainApp(api: _apiReturning(200, '{"Hello": "Hello from home hub"}')),
+      MaterialApp(
+        home: ServerStatusPage(
+          api: _apiReturning(200, '{"Hello": "Hello from home hub"}'),
+        ),
+      ),
     );
     await tester.pumpAndSettle();
 
@@ -21,7 +26,9 @@ void main() {
   });
 
   testWidgets('shows Not connected on server error', (tester) async {
-    await tester.pumpWidget(MainApp(api: _apiReturning(500, 'boom')));
+    await tester.pumpWidget(
+      MaterialApp(home: ServerStatusPage(api: _apiReturning(500, 'boom'))),
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('Not connected'), findsOneWidget);

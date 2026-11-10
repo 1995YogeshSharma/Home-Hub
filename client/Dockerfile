@@ -16,4 +16,5 @@ RUN flutter test \
 
 # Stage 2: serve the static bundle.
 FROM nginx:alpine
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /src/build/web /usr/share/nginx/html
